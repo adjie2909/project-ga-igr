@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from datetime import timedelta
 from django.utils import timezone
 from django.core.files.base import ContentFile
+import os
 
 # --- PROFILE USER DENGAN ROLE & DIVISI ---
 class UserProfile(models.Model):
@@ -122,20 +123,36 @@ class PerbaikanJasa(models.Model):
         delta = self.target_deadline - timezone.now()
         return round(delta.total_seconds() / 3600, 1)
 
-    def save(self, *args, **kwargs):
-        # 1. Kompres foto laporan awal
-        if self.upload_foto:
-            img = Image.open(self.upload_foto)
-            if img.mode in ('RGBA', 'P'):
-                img = img.convert('RGB')
-            max_size = (1600, 1600)
-            img.thumbnail(max_size, Image.Resampling.LANCZOS)
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=75, optimize=True)
-            output.seek(0)
-            self.upload_foto = ContentFile(output.read(), name=self.upload_foto.name)
+def save(self, *args, **kwargs):
+        # 1. Cek apakah ini gambar baru atau sekadar update data/status
+        is_new_upload = False
+        if not self.pk:
+            is_new_upload = True
+        else:
+            old_data = PerbaikanJasa.objects.filter(pk=self.pk).first()
+            if old_data and old_data.upload_foto != self.upload_foto:
+                is_new_upload = True
 
-        # 2. Kompres foto hasil teknisi
+        # 2. Kompres HANYA jika gambar baru diunggah
+        if self.upload_foto and is_new_upload:
+            try:
+                img = Image.open(self.upload_foto)
+                if img.mode in ('RGBA', 'P'):
+                    img = img.convert('RGB')
+                max_size = (1600, 1600)
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                output = BytesIO()
+                img.save(output, format='JPEG', quality=75, optimize=True)
+                output.seek(0)
+                
+                # PENTING: Gunakan os.path.basename agar tidak membawa jalur folder sebelumnya
+                base_name = os.path.basename(self.upload_foto.name)
+                clean_name = f"{os.path.splitext(base_name)[0]}.jpg"
+                self.upload_foto = ContentFile(output.read(), name=clean_name)
+            except Exception as e:
+                print(f"Gagal kompres upload_foto: {e}")
+
+        # 3. Kompres foto hasil teknisi (jika ada file baru)
         if self.foto_hasil_pekerjaan:
             try:
                 if hasattr(self.foto_hasil_pekerjaan.file, 'read'):
@@ -143,14 +160,14 @@ class PerbaikanJasa(models.Model):
             except Exception:
                 pass
 
-        # 3. Generate nomor dokumen PJ otomatis
+        # 4. Generate nomor dokumen PJ otomatis
         if not self.no_dokumen:
             self.no_dokumen = generate_document_number(PerbaikanJasa, 'PJ')
 
-        # 4. Simpan ke database (cukup 1 kali)
+        # 5. Simpan ke database
         super().save(*args, **kwargs)
 
-    def __str__(self):
+def __str__(self):
         return f"[{self.get_status_display()}] {self.objek} - {self.divisi}"
 
 
@@ -228,30 +245,42 @@ class ItemPembelianCabang(models.Model):
     referensi = models.CharField(max_length=255, blank=True, help_text="Link atau info toko")
     upload_foto = models.ImageField(upload_to='pembelian/referensi/', blank=True, null=True)
 
-    def save(self, *args, **kwargs):
-        if self.upload_foto:
-            img = Image.open(self.upload_foto)
-            # Konversi jika format RGBA/PNG ke RGB
-            if img.mode in ('RGBA', 'P'):
-                img = img.convert('RGB')
-            
-            # Batasi dimensi maksimal ke 1600px
-            max_size = (1600, 1600)
-            img.thumbnail(max_size, Image.Resampling.LANCZOS)
-            
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=75, optimize=True)
-            output.seek(0)
-            
-            # Timpa file asli dengan file hasil kompresi
-            self.upload_foto = ContentFile(output.read(), name=self.upload_foto.name)
+def save(self, *args, **kwargs):
+        # 1. Cek apakah gambar referensi baru diunggah
+        is_new_upload = False
+        if not self.pk:
+            is_new_upload = True
+        else:
+            old_item = ItemPembelianCabang.objects.filter(pk=self.pk).first()
+            if old_item and old_item.upload_foto != self.upload_foto:
+                is_new_upload = True
+
+        # 2. Kompres HANYA jika gambar baru diunggah
+        if self.upload_foto and is_new_upload:
+            try:
+                img = Image.open(self.upload_foto)
+                if img.mode in ('RGBA', 'P'):
+                    img = img.convert('RGB')
+                max_size = (1600, 1600)
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                output = BytesIO()
+                img.save(output, format='JPEG', quality=75, optimize=True)
+                output.seek(0)
+                
+                # PENTING: Ambil nama file murni tanpa path
+                base_name = os.path.basename(self.upload_foto.name)
+                clean_name = f"{os.path.splitext(base_name)[0]}.jpg"
+                self.upload_foto = ContentFile(output.read(), name=clean_name)
+            except Exception as e:
+                print(f"Gagal kompres referensi: {e}")
+
         super().save(*args, **kwargs)
 
-    def __str__(self):
+def __str__(self):
         return f"{self.nama_barang} (Pengajuan #{self.pembelian_id})"
 
-    @property
-    def referensi_url(self):
+@property
+def referensi_url(self):
         """Memastikan link referensi selalu memiliki skema http/https agar tidak dianggap relative path."""
         ref = self.referensi.strip() if self.referensi else ""
         if not ref:
@@ -260,7 +289,7 @@ class ItemPembelianCabang(models.Model):
             return ref
         return f"https://{ref}"
 
-    def __str__(self):
+def __str__(self):
         return f"{self.nama_barang} (Pengajuan #{self.pembelian_id})"
 
 def compress_image(image_field, max_width=1280, quality=75):

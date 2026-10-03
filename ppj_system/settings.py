@@ -21,11 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-tny0y#&_nppe=qrp&pn0yuarqp*tzcvo#g^f#eq%on2)n9j5o@'
+WA_BOT_ENDPOINT = 'http://localhost:3000/api/send-notif'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False #GANTI TRUE JIKA ALLOWED HOSTS = ['*'] GANTI FALSE JIKA ALLOWED HOSTS = ['IP SERVER']
 
-ALLOWED_HOSTS = ['192.168.1.9','www.kia-digital.my.id']
+ALLOWED_HOSTS = ['192.168.1.9','www.kia-digital.my.id', '192.168.154.71']
 #ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
