@@ -1,0 +1,258 @@
+{% extends 'core/base.html' %}
+{% load accounting_tags %}
+{% block title %}{{ pc.no_dokumen }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Panel Kiri: Informasi Pemohon & Seluruh Barang -->
+    <div class="col-12 col-lg-7">
+        <div class="card card-custom p-4 mb-3 border-top border-4 border-primary">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="fw-bold text-primary mb-0">{{ pc.no_dokumen|default:pc.id }}</h5>
+                    <span class="badge bg-secondary">{{ pc.items.count }} Jenis Barang</span>
+                </div>
+
+                <!-- Tombol Cetak Bukti Handover -->
+                {% if profile.role == 'GA' or request.user.is_superuser %}
+                    {% if pc.tahapan_ga == 'HANDOVER' %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'core:cetak_handover' pc.no_dokumen|default:pc.id %}" target="_blank" class="btn btn-sm btn-success">
+                                <i class="bi bi-printer me-1"></i> CETAK SERAH TERIMA
+                            </a>
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <div class="row g-2 mb-3 small">
+                <div class="col-6"><span class="text-muted">Pemohon:</span> <strong>{{ pc.nama }} ({{ pc.nik }})</strong></div>
+                <div class="col-6"><span class="text-muted">Tanggal:</span> <strong>{{ pc.tanggal }}</strong></div>
+                <div class="col-12"><span class="text-muted">Total Estimasi:</span> <strong class="text-danger fs-6">{{ pc.total_estimasi|rupiah }}</strong></div>
+            </div>
+
+            <!-- Tabel Daftar Barang -->
+            <h6 class="fw-bold text-dark mt-3 mb-2">Rincian Barang yang Diajukan:</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle">
+                    <thead class="table-light small">
+                        <tr>
+                            <th>No</th>
+                            <th>Nama Barang</th>
+                            <th>Fungsi & Peruntukan</th>
+                            <th>Estimasi Biaya</th>
+                            <th class="text-center">Foto / Ref</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        {% for item in pc.items.all %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td class="fw-semibold">{{ item.nama_barang }}</td>
+                            <td>{{ item.deskripsi_fungsi_peruntukan }}</td>
+                            <td>{{ item.estimasi_harga|rupiah }}</td>
+                            <td class="text-center">
+                                {% if item.upload_foto %}
+                                <button type="button" 
+                                        class="btn btn-xs btn-outline-primary py-0 px-1 btn-preview-img" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#imagePreviewModal" 
+                                        data-img-src="{{ item.upload_foto.url }}" 
+                                        data-img-title="{{ item.nama_barang }}">
+                                    <i class="bi bi-image"></i>
+                                </button>
+                                {% endif %}
+                                {% if item.referensi %}
+                                    <a href="{{ item.referensi_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary py-0 px-1" title="Buka Link Toko / Referensi">
+                                        <i class="bi bi-link-45deg"></i>
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light fw-bold small">
+                            <td colspan="3" class="text-end">Grand Total Estimasi:</td>
+                            <td colspan="2" class="text-danger">{{ pc.total_estimasi|rupiah }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <a href="{% url 'core:pembelian_list' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center mb-1">
+                    <i class="bi bi-arrow-left me-1"></i> Kembali ke Daftar Pembelian
+                </a>
+            </div>
+        </div>
+
+        <!-- History Catatan Approval -->
+        <div class="card card-custom p-3">
+            <h6 class="fw-bold mb-2">Riwayat Catatan Review</h6>
+            <div class="small border-start border-3 ps-2 mb-2 {% if pc.is_approved_sam %}border-success{% elif pc.is_approved_sam is False %}border-danger{% else %}border-secondary{% endif %}">
+                <strong>Review SAM:</strong>
+                <div>{{ pc.keterangan_sam|default:"Belum ada catatan." }}</div>
+            </div>
+            <div class="small border-start border-3 ps-2 {% if pc.is_approved_sm %}border-success{% elif pc.is_approved_sm is False %}border-danger{% else %}border-secondary{% endif %}">
+                <strong>Review SM:</strong>
+                <div>{{ pc.keterangan_sm|default:"Belum ada catatan." }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Kanan: Aksi Review & Pengadaan GA -->
+    <div class="col-12 col-lg-5">
+        <!-- 1. Review SAM -->
+        {% if can_sam_review %}
+        <div class="card card-custom p-4 border-top border-4 border-warning mb-3">
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-shield-check me-1"></i> Review Permintaan (SAM)</h6>
+            <form method="post" id="formReviewSAM">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="submit_sam">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Catatan / Keterangan</label>
+                    {{ sam_form.keterangan_sam }}
+                    <small class="text-muted d-block mt-1" id="nokHelperSAM">
+                        *Wajib diisi minimal 11 karakter (lebih dari 10) jika memilih <strong>NOK (Tolak)</strong>.
+                    </small>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" name="decision" value="OK" class="btn btn-success fw-semibold">
+                        <i class="bi bi-check-circle me-1"></i> OK (Approve ke SM)
+                    </button>
+                    <button type="submit" name="decision" value="NOK" class="btn btn-app-red fw-semibold" id="btnNokSAM">
+                        <i class="bi bi-x-circle me-1"></i> NOK (Tolak)
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- 2. Review SM -->
+        {% if can_sm_review %}
+        <div class="card card-custom p-4 border-top border-4 border-primary mb-3">
+            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-award me-1"></i> Review Permintaan (SM)</h6>
+            <form method="post" id="formReviewSM">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="submit_sm">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Catatan / Keterangan</label>
+                    {{ sm_form.keterangan_sm }}
+                    <small class="text-muted d-block mt-1" id="nokHelperSM">
+                        *Wajib diisi minimal 11 karakter (lebih dari 10) jika memilih <strong>NOK (Tolak)</strong>.
+                    </small>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" name="decision" value="OK" class="btn btn-success fw-semibold">
+                        <i class="bi bi-check-circle me-1"></i> OK (Approve ke GA)
+                    </button>
+                    <button type="submit" name="decision" value="NOK" class="btn btn-app-red fw-semibold" id="btnNokSM">
+                        <i class="bi bi-x-circle me-1"></i> NOK (Tolak)
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- 3. Tracking GA -->
+        {% if can_ga_track %}
+        <div class="card card-custom p-4 border-top border-4 border-success mb-3">
+            <h6 class="fw-bold text-success mb-3"><i class="bi bi-truck me-1"></i> Update Status Pengadaan (GA)</h6>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="submit_ga">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Pilih Tahapan</label>
+                    {{ ga_form.tahapan_ga }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nomor Invoice</label>
+                    {{ ga_form.nomor_invoice }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Bukti Invoice / Struk</label>
+                    
+                    {% if pc.upload_invoice %}
+                    <div class="p-2 mb-2 bg-light border rounded small d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted d-block" style="font-size: 0.75rem;">File saat ini:</span>
+                            <a href="{{ pc.upload_invoice.url }}" target="_blank" class="fw-semibold text-primary text-decoration-none">
+                                <i class="bi bi-file-earmark-text me-1"></i> Bukti invoice/struk
+                            </a>
+                        </div>
+                        <div class="form-check m-0">
+                            <input class="form-check-input" type="checkbox" name="upload_invoice-clear" id="upload_invoice-clear_id">
+                            <label class="form-check-label text-danger small" for="upload_invoice-clear_id">Hapus file</label>
+                        </div>
+                    </div>
+                    <div class="small text-muted mb-1">Ganti file:</div>
+                    {% endif %}
+
+                    <input type="file" name="upload_invoice" class="form-control form-control-sm" id="id_upload_invoice">
+                </div>
+                <button type="submit" class="btn btn-success w-100 fw-semibold">
+                    <i class="bi bi-save me-1"></i> Simpan Status Tahapan
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Invoice Info -->
+        {% if pc.upload_invoice %}
+        <div class="card card-custom p-3 mb-3 border-start border-4 border-info">
+            <h6 class="fw-bold text-info-emphasis mb-1">Invoice Pembelian</h6>
+            <div class="small">Nomor: <strong>{{ pc.nomor_invoice|default:"-" }}</strong></div>
+            <a href="{{ pc.upload_invoice.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                <i class="bi bi-file-earmark-arrow-down me-1"></i> Buka File Invoice
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Ringkasan Status -->
+        <div class="card card-custom p-3">
+            <h6 class="fw-bold small text-muted text-uppercase mb-2">Ringkasan Status</h6>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+                <span>Approval:</span>
+                <strong>{{ pc.get_status_approval_display }}</strong>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+                <span>Tahapan GA:</span>
+                <strong>{{ pc.get_tahapan_ga_display }}</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Preview Foto -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header py-2 bg-light border-bottom">
+                <h6 class="modal-title fw-bold text-dark" id="imagePreviewModalLabel">Preview Foto</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2 text-center bg-dark rounded-bottom">
+                <img id="modalPreviewImage" src="" alt="Preview Barang" class="img-fluid rounded" style="max-height: 80vh; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. Script Modal Preview Foto
+    const modalImage = document.getElementById('modalPreviewImage');
+    const modalTitle = document.getElementById('imagePreviewModalLabel');
+    const previewButtons = document.querySelectorAll('.btn-preview-img');
+
+    if (previewButtons) {
+        previewButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const imgSrc = this.getAttribute('data-img-src');
+                const imgTitle = this.getAttribute('data-img-title');
+                if (modalImage) modalImage.src = imgSrc;
+                if (modalTitle) modalTitle.textContent = 'Foto: ' + imgTitle;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Daftar User Baru - PPJ IGR GTO{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center py-4" style="min-height: 80vh;">
+    <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+        <div class="card card-custom p-4 shadow-sm border-top border-4 border-danger">
+            <div class="text-center mb-3">
+                <img src="{% static 'img/logo.png' %}" alt="Logo" class="me-2" style="height: 80px; width: auto; object-fit: contain;">
+                <h4 class="fw-bold text-primary mb-1">Registrasi Akun Baru</h4>
+                <p class="text-muted small">Sistem Perbaikan, Pembelian, & Jasa (PPJ)</p>
+            </div>
+
+            <form method="post" id="regForm">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2 small">
+                        {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- User ID (3 Karakter Kapital) -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">User ID</label>
+                    {{ form.user_id }}
+                    
+                    {% if form.user_id.errors %}
+                        <div class="text-danger small mt-1">{{ form.user_id.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Nama Lengkap -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nama Lengkap</label>
+                    {{ form.nama_lengkap }}
+                    {% if form.nama_lengkap.errors %}
+                        <div class="text-danger small mt-1">{{ form.nama_lengkap.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- NIK -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">NIK</label>
+                    {{ form.nik }}
+                    {% if form.nik.errors %}
+                        <div class="text-danger small mt-1">{{ form.nik.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <!-- Nomor HP / WhatsApp -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Nomor HP / WhatsApp</label>
+                    {{ form.nomor_hp }}
+                    {% if form.nomor_hp.errors %}
+                        <div class="text-danger small mt-1">{{ form.nomor_hp.errors.0 }}</div>
+                    {% endif %}
+                    
+                <!-- Role & Divisi -->
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Role</label>
+                        {{ form.role }}
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Divisi</label>
+                        {{ form.divisi }}
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Password</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Konfirmasi Password -->
+                <div class="mb-4">
+                    <label class="form-label small fw-semibold">Konfirmasi Password</label>
+                    {{ form.confirm_password }}
+                    {% if form.confirm_password.errors %}
+                        <div class="text-danger small mt-1">{{ form.confirm_password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-app-blue w-100 py-2 fw-semibold mb-3">
+                    <i class="bi bi-check2-circle me-1"></i> Daftarkan Akun
+                </button>
+
+                <div class="text-center small text-muted">
+                    Sudah memiliki akun? <a href="{% url 'core:login' %}" class="text-primary fw-semibold text-decoration-none">Masuk di sini</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Script Front-End: Memaksa Input Selalu Huruf Besar (Uppercase) Secara Real-Time -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const uppercaseInputs = document.querySelectorAll('.uppercase-input');
+    
+    uppercaseInputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            // Ubah langsung nilai input menjadi kapital saat diketik
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.toUpperCase();
+            this.setSelectionRange(start, end);
+        });
+    });
+});
+</script>
+{% endblock %}

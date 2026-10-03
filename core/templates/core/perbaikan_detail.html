@@ -1,0 +1,203 @@
+{% extends 'core/base.html' %}
+{% load accounting_tags %}
+{% block title %}{{ pj.no_dokumen }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Panel Kiri: Informasi Laporan User -->
+    <div class="col-12 col-lg-7">
+        <div class="card card-custom p-4 mb-3">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                <h5 class="fw-bold text-primary mb-0">{{ pj.no_dokumen|default:pj.id }} - {{ pj.objek }}</h5>
+                <span class="badge bg-secondary">{{ pj.divisi }}</span>
+            </div>
+            
+            <div class="row g-2 mb-3 small">
+                <div class="col-6"><span class="text-muted">Pemohon:</span> <strong>{{ pj.nama }} ({{ pj.nik }})</strong></div>
+                <div class="col-6"><span class="text-muted">Tanggal:</span> <strong>{{ pj.tanggal }}</strong></div>
+                <div class="col-12"><span class="text-muted">Lokasi:</span> <strong>{{ pj.lokasi_spesifik }}</strong></div>
+            </div>
+
+            <div class="mb-3">
+                <label class="text-muted small fw-semibold">Detail Kerusakan:</label>
+                <p class="p-2 rounded bg-light border">{{ pj.detail }}</p>
+            </div>
+
+            {% if pj.upload_foto %}
+            <div>
+                <label class="text-muted small fw-semibold d-block mb-1">Foto Kondisi Awal:</label>
+                <img src="{{ pj.upload_foto.url }}" alt="Kondisi Awal" class="img-fluid rounded border" style="max-height: 250px;">
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Bagian Hasil Kerja Teknisi (Jika sudah selesai/proses) -->
+        {% if pj.progress_pekerjaan != 'BELUM DIKERJAKAN' or pj.foto_hasil_pekerjaan %}
+        <div class="card card-custom p-3 border-start border-4 border-success">
+            <h6 class="fw-bold text-success mb-2">Hasil & Laporan Teknisi</h6>
+            <div class="small mb-1"><strong>Status:</strong> {{ pj.progress_pekerjaan }}</div>
+            {% if pj.kendala %}<div class="small mb-2"><strong>Kendala:</strong> {{ pj.kendala }}</div>{% endif %}
+            {% if pj.foto_hasil_pekerjaan %}
+            <img src="{{ pj.foto_hasil_pekerjaan.url }}" class="img-fluid rounded border" style="max-height: 200px;">
+            {% endif %}
+        </div>
+        {% endif %}
+        <a href="{% url 'core:perbaikan_list' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center mb-3">
+            <i class="bi bi-arrow-left me-1"></i> Kembali ke Daftar Perbaikan
+        </a>
+    </div>
+
+    <!-- Panel Kanan: Alur Kerja & Form Role (GA, SAM, Teknisi) -->
+    <div class="col-12 col-lg-5">
+        <!-- 1. Form GA -->
+        {% if can_ga_edit %}
+        <div class="card card-custom p-4 border-top border-4 border-warning mb-3">
+            <h6 class="fw-bold text-warning-emphasis mb-3"><i class="bi bi-clipboard2-check me-1"></i> Input Kebutuhan Bahan (GA)</h6>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="submit_ga">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Deskripsi Bahan / Jasa</label>
+                    {{ ga_form.deskripsi_kebutuhan_bahan }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Estimasi Harga (Rp)</label>
+                    {{ ga_form.estimasi_harga }}
+                </div>
+                <button type="submit" class="btn btn-warning text-dark w-100 fw-semibold">
+                    <i class="bi bi-arrow-right-circle me-1"></i> Simpan & Diteruskan ke SAM
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        
+        <!-- 2. Form SAM -->
+        {% if can_sam_review %}
+        <div class="card card-custom p-4 border-top border-4 border-primary mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-primary mb-0"><i class="bi bi-shield-check me-1"></i> Review Permintaan (SAM)</h6>
+                
+                <!-- Tombol Hapus Sesuai Flowchart: SAM "Hapus Permintaan (jika diperlukan)" -->
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="bi bi-trash3"></i> Hapus Permintaan
+                </button>
+            </div>
+            
+            <div class="bg-light p-2 rounded mb-3 small border">
+                <div><strong>Kebutuhan Bahan:</strong> {{ pj.deskripsi_kebutuhan_bahan|default:"-" }}</div>
+                <div><strong>Estimasi Biaya:</strong> {{ pj.estimasi_harga|rupiah }}</div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="submit_sam">
+                
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Tentukan Urgensi (Jika OK)</label>
+                    {{ sam_form.urgensi }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Alasan Penolakan (Jika NOK)</label>
+                    {{ sam_form.alasan_nok_sam }}
+                </div>
+                
+                <!-- Gunakan name="decision" -->
+                <div class="d-grid gap-2">
+                    <button type="submit" name="decision" value="OK" class="btn btn-success fw-semibold">
+                        <i class="bi bi-check-circle me-1"></i> OK (Approve ke Teknisi)
+                    </button>
+                    <button type="submit" name="decision" value="NOK" class="btn btn-danger fw-semibold">
+                        <i class="bi bi-x-circle me-1"></i> NOK (Tolak)
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Modal Konfirmasi Hapus Khusus SAM -->
+        <div class="modal fade" id="deleteModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Konfirmasi Hapus Tiket</h6>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body small">
+                        Apakah Anda yakin ingin menghapus permintaan <strong>{{ pj.no_dokumen }} - {{ pj.objek }}</strong> secara permanen dari sistem?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button>
+                        <form action="{% url 'core:perbaikan_delete' pj.no_dokumen|default:pj.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">Ya, Hapus Permanen</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 3. Form Teknisi -->
+        {% if can_teknisi_update %}
+        <div class="card card-custom p-4 border-top border-4 border-success">
+            <h6 class="fw-bold text-success mb-3"><i class="bi bi-wrench me-1"></i> Update Progress (Teknisi)</h6>
+            <div class="mb-3 small">
+                <span class="badge badge-{{ pj.urgensi|lower }} mb-2">Tingkat Urgensi: {{ pj.urgensi }}</span>
+            </div>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="submit_teknisi">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Progress Pekerjaan</label>
+                    {{ teknisi_form.progress_pekerjaan }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Input Kendala (Jika Ada)</label>
+                    {{ teknisi_form.kendala }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Upload Foto Hasil Pekerjaan (Jika Selesai)</label>
+                    {{ teknisi_form.foto_hasil_pekerjaan }}
+                </div>
+                <button type="submit" class="btn btn-success w-100 fw-semibold">
+                    <i class="bi bi-save me-1"></i> Simpan Progress
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Status Summary Card -->
+        <div class="card card-custom p-3 mt-3">
+            <h6 class="fw-bold small text-muted text-uppercase mb-2">Target & Status Pengerjaan</h6>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+                <span>Review Status:</span>
+                <strong>{{ pj.get_status_display }}</strong>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+                <span>Tingkat Urgensi:</span>
+                <strong>{{ pj.urgensi|default:"Belum Ditentukan" }}</strong>
+            </div>
+            {% if pj.target_deadline %}
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+                <span>Batas Waktu (SLA):</span>
+                <strong>{{ pj.target_deadline|date:"d M Y, H:i" }} WITA</strong>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+                <span>Status Waktu:</span>
+                {% if pj.progress_pekerjaan == 'SELESAI' %}
+                    <span class="text-success fw-bold"><i class="bi bi-check-all"></i> Selesai</span>
+                {% elif pj.is_overdue %}
+                    <span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Terlambat (Overdue)</span>
+                {% else %}
+                    <span class="text-primary fw-bold">{{ pj.remaining_hours }} jam tersisa</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            <div class="d-flex justify-content-between py-1 small">
+                <span>Progress Teknisi:</span>
+                <strong>{{ pj.progress_pekerjaan }}</strong>
+            </div>
+        </div>
+</div>
+
+{% endblock %}

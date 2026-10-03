@@ -1,0 +1,165 @@
+{% extends 'core/base.html' %}
+{% load accounting_tags %}
+{% block title %}Daftar Pembelian Cabang{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0 text-primary">Daftar Pembelian Cabang</h4>
+    <a href="{% url 'core:pembelian_create' %}" class="btn btn-sm btn-app-green">
+        <i class="bi bi-plus-lg me-1"></i> Ajukan Pembelian
+    </a>
+</div>
+
+<!-- Card Filter & Search -->
+<div class="card card-custom p-3 mb-3 border-start border-3 border-primary">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+            <label class="form-label small fw-semibold text-muted mb-1">Cari Pemohon / Dokumen / Barang</label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Kata kunci...">
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Dari Tanggal</label>
+            <input type="date" name="tgl_mulai" value="{{ tgl_mulai }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Sampai Tanggal</label>
+            <input type="date" name="tgl_selesai" value="{{ tgl_selesai }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Status Approval</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">Semua Approval</option>
+                {% for code, label in status_choices %}
+                    <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Status GA</label>
+            <select name="tahapan" class="form-select form-select-sm">
+                <option value="">Semua Tahapan</option>
+                {% for code, label in tahapan_choices %}
+                    <option value="{{ code }}" {% if tahapan_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-1 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-app-blue w-100" title="Terapkan Filter">
+                <i class="bi bi-funnel"></i>
+            </button>
+            {% if search_query or status_filter or tahapan_filter or tgl_mulai or tgl_selesai %}
+                <a href="{% url 'core:pembelian_list' %}" class="btn btn-sm btn-light border" title="Reset Filter">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Tabel Data -->
+<div class="card card-custom p-0 overflow-hidden mb-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light border-bottom">
+                <tr class="small text-muted">
+                    <th>No. Dokumen</th>
+                    <th>Tanggal</th>
+                    <th>Pemohon</th>
+                    <th>Jumlah Barang</th>
+                    <th>Total Estimasi</th>
+                    <th>Status Approval</th>
+                    <th>Status GA</th>
+                    <th class="text-center">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="fw-bold text-primary">{{ item.no_dokumen|default:item.id }}</td>
+                    <td>{{ item.tanggal|date:"d M Y" }}</td>
+                    <td>
+                        <div class="fw-semibold">{{ item.nama }}</div>
+                        <small class="text-muted">{{ item.nik }}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border">{{ item.total_item }} Barang</span>
+                    </td>
+                    <td><strong class="text-danger">{{ item.total_estimasi|rupiah }}</strong></td>
+                    <td>
+                        {% if item.status_approval == 'WAITING_SAM' %}
+                            <span class="badge bg-warning text-dark">Review SAM</span>
+                        {% elif item.status_approval == 'WAITING_SM' %}
+                            <span class="badge bg-info text-dark">Review SM</span>
+                        {% elif item.status_approval == 'APPROVED_TO_GA' %}
+                            <span class="badge bg-success">Disetujui</span>
+                        {% else %}
+                            <span class="badge bg-danger">Ditolak (NOK)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if item.tahapan_ga == 'HANDOVER' %}bg-success{% elif item.tahapan_ga == 'PENDING' %}bg-secondary{% else %}bg-primary{% endif %}">
+                            {{ item.get_tahapan_ga_display }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <a href="{% url 'core:pembelian_detail' item.no_dokumen|default:item.id %}" class="btn btn-sm btn-outline-primary">
+                            Detail <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">Belum ada pengajuan pembelian cabang yang sesuai filter.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Navigasi Pagination -->
+    {% if items.has_other_pages %}
+    <div class="card-footer bg-white border-top py-2 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+        <small class="text-muted">
+            Menampilkan data <strong>{{ items.start_index }} - {{ items.end_index }}</strong> dari total <strong>{{ items.paginator.count }}</strong> data
+        </small>
+        
+        <nav aria-label="Navigasi Halaman">
+            <ul class="pagination pagination-sm mb-0">
+                {% if items.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ items.previous_page_number }}&q={{ search_query }}&status={{ status_filter }}&tahapan={{ tahapan_filter }}&tgl_mulai={{ tgl_mulai }}&tgl_selesai={{ tgl_selesai }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+                {% endif %}
+
+                {% for num in items.paginator.page_range %}
+                    {% if items.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > items.number|add:'-3' and num < items.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&q={{ search_query }}&status={{ status_filter }}&tahapan={{ tahapan_filter }}&tgl_mulai={{ tgl_mulai }}&tgl_selesai={{ tgl_selesai }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if items.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ items.next_page_number }}&q={{ search_query }}&status={{ status_filter }}&tahapan={{ tahapan_filter }}&tgl_mulai={{ tgl_mulai }}&tgl_selesai={{ tgl_selesai }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

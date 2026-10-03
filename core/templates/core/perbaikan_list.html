@@ -1,0 +1,189 @@
+{% extends 'core/base.html' %}
+{% block title %}Daftar Perbaikan & Jasa{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0 text-primary">Daftar Perbaikan & Jasa</h4>
+    <a href="{% url 'core:perbaikan_create' %}" class="btn btn-sm btn-app-green">
+        <i class="bi bi-plus-lg me-1"></i> Input Baru
+    </a>
+</div>
+
+<!-- Card Filter & Search -->
+<div class="card card-custom p-3 mb-3 border-start border-3 border-primary">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+            <label class="form-label small fw-semibold text-muted mb-1">Cari Pemohon / Dokumen / Objek</label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Kata kunci...">
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Dari Tanggal</label>
+            <input type="date" name="tgl_mulai" value="{{ tgl_mulai }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Sampai Tanggal</label>
+            <input type="date" name="tgl_selesai" value="{{ tgl_selesai }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Status Approval</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">Semua Status</option>
+                {% for code, label in status_choices %}
+                    <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small fw-semibold text-muted mb-1">Tingkat Urgensi</label>
+            <select name="urgensi" class="form-select form-select-sm">
+                <option value="">Semua Urgensi</option>
+                {% for code, label in urgensi_choices %}
+                    <option value="{{ code }}" {% if urgensi_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-1 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-app-blue w-100" title="Terapkan Filter">
+                <i class="bi bi-funnel"></i>
+            </button>
+            {% if search_query or status_filter or urgensi_filter or tgl_mulai or tgl_selesai %}
+                <a href="{% url 'core:perbaikan_list' %}" class="btn btn-sm btn-light border" title="Reset Filter">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Tabel Data -->
+<div class="card card-custom p-0 overflow-hidden mb-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light border-bottom">
+                <tr class="small text-muted">
+                    <th>No. Dokumen</th>
+                    <th>Tanggal</th>
+                    <th>Objek & Detail</th>
+                    <th>Divisi / Pengaju</th>
+                    <th>Status Review</th>
+                    <th>Urgensi</th>
+                    <th>Progress Teknisi</th>
+                    <th class="text-center">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="fw-bold text-primary">{{ item.no_dokumen|default:item.id }}</td>
+                    <td>{{ item.tanggal|date:"d M Y" }}</td>
+                    <td>
+                        <div class="fw-bold text-dark">{{ item.objek }}</div>
+                        <small class="text-muted text-truncate d-inline-block" style="max-width: 250px;">{{ item.lokasi_spesifik }}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ item.divisi }}</span>
+                        <div class="small text-muted">{{ item.nama }}</div>
+                    </td>
+                    <td>
+                        {% if item.status == 'WAITING_GA' %}
+                            <span class="badge bg-warning text-dark">Menunggu GA</span>
+                        {% elif item.status == 'WAITING_SAM' %}
+                            <span class="badge bg-info text-dark">Menunggu SAM</span>
+                        {% elif item.status == 'APPROVED' %}
+                            <span class="badge bg-success">Disetujui</span>
+                        {% else %}
+                            <span class="badge bg-danger">Ditolak (NOK)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.urgensi %}
+                            <!-- Badge Urgensi -->
+                            {% if item.urgensi == 'EMERGENCY' and item.progress_pekerjaan != 'SELESAI' %}
+                                <span class="badge badge-pulse-emergency"><i class="bi bi-exclamation-octagon-fill me-1"></i> EMERGENCY</span>
+                            {% else %}
+                                <span class="badge badge-{{ item.urgensi|lower }}">{{ item.urgensi }}</span>
+                            {% endif %}
+
+                            <!-- SLA Target / Sisa Waktu -->
+                            {% if item.progress_pekerjaan != 'SELESAI' and item.target_deadline %}
+                                <div class="mt-1">
+                                    {% if item.is_overdue %}
+                                        <span class="badge badge-overdue"><i class="bi bi-alarm-fill me-1"></i> Terlambat</span>
+                                    {% else %}
+                                        <small class="text-muted" style="font-size: 0.72rem;">
+                                            <i class="bi bi-clock-history"></i> Sisa: {{ item.remaining_hours }} jam
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="small fw-semibold {% if item.progress_pekerjaan == 'SELESAI' %}text-success{% elif item.progress_pekerjaan == 'PROSES' %}text-primary{% else %}text-muted{% endif %}">
+                            {{ item.progress_pekerjaan }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <a href="{% url 'core:perbaikan_detail' item.no_dokumen|default:item.id %}" class="btn btn-sm btn-outline-primary">
+                            Detail <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">Belum ada data permintaan perbaikan yang sesuai filter.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Navigasi Pagination -->
+    {% if items.has_other_pages %}
+    <div class="card-footer bg-white border-top py-2 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+        <small class="text-muted">
+            Menampilkan data <strong>{{ items.start_index }} - {{ items.end_index }}</strong> dari total <strong>{{ items.paginator.count }}</strong> data
+        </small>
+        
+        <nav aria-label="Navigasi Halaman">
+            <ul class="pagination pagination-sm mb-0">
+                {% if items.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ items.previous_page_number }}&q={{ search_query }}&status={{ status_filter }}&urgensi={{ urgensi_filter }}&tgl_mulai={{ tgl_mulai }}&tgl_selesai={{ tgl_selesai }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+                {% endif %}
+
+                {% for num in items.paginator.page_range %}
+                    {% if items.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > items.number|add:'-3' and num < items.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&q={{ search_query }}&status={{ status_filter }}&urgensi={{ urgensi_filter }}&tgl_mulai={{ tgl_mulai }}&tgl_selesai={{ tgl_selesai }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if items.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ items.next_page_number }}&q={{ search_query }}&status={{ status_filter }}&urgensi={{ urgensi_filter }}&tgl_mulai={{ tgl_mulai }}&tgl_selesai={{ tgl_selesai }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

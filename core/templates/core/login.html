@@ -1,0 +1,83 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Login - PPJ IGR GTO{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="col-12 col-sm-9 col-md-6 col-lg-4">
+        <div class="card card-custom p-4 shadow-sm border-top border-4 border-primary">
+            <div class="text-center mb-4">
+                <img src="{% static 'img/logo.png' %}" alt="Logo" class="me-2" style="height: 80px; width: auto; object-fit: contain;">
+                <h4 class="fw-bold text-primary mb-1">PPJ IGR GTO</h4>
+                <p class="text-muted small">Sistem Perbaikan, Pembelian, & Jasa</p>
+            </div>
+            
+            <form method="post" id="loginForm">
+                {% csrf_token %}
+                {% if request.GET.next %}
+                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">User ID</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-primary"><i class="bi bi-person-fill"></i></span>
+                        <input 
+                            type="text" 
+                            name="user_id" 
+                            id="userIdInput"
+                            class="form-control" 
+                            maxlength="3" 
+                            minlength="3"
+                            value="{{ last_user_id|default:'' }}"
+                            style="text-transform: uppercase; font-weight: 600; letter-spacing: 1px;" 
+                            required 
+                            autofocus 
+                            autocomplete="off"
+                        >
+                    </div>
+                </div>
+
+                <!-- Input Password -->
+                <div class="mb-4">
+                    <label class="form-label small fw-semibold">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-primary"><i class="bi bi-key-fill"></i></span>
+                        <input 
+                            type="password" 
+                            name="password" 
+                            class="form-control" 
+                            placeholder="••••••••" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-app-blue w-100 py-2 fw-semibold mb-3">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Masuk
+                </button>
+            </form>
+
+            <div class="text-center small text-muted border-top pt-3">
+                Belum punya akun? <a href="{% url 'core:register' %}" class="text-danger fw-semibold text-decoration-none">Daftar Akun Baru</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script Front-End: Memaksa Input Real-Time Huruf Kapital & Membatasi Spasi -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('userIdInput');
+    if (input) {
+        input.addEventListener('input', function () {
+            // Hapus spasi jika ada dan ubah menjadi huruf besar
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.replace(/\s/g, '').toUpperCase();
+            this.setSelectionRange(start, end);
+        });
+    }
+});
+</script>
+{% endblock %}
