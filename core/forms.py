@@ -2,8 +2,11 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.forms.widgets import ClearableFileInput
 from django.core.exceptions import ValidationError
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from .models import PerbaikanJasa, PembelianCabang, ItemPembelianCabang, UserProfile
+
+# Ambil user model kustom di paling atas file
+User = get_user_model()
 
 
 # ==========================================
@@ -108,7 +111,6 @@ class PembelianSMReviewForm(forms.ModelForm):
             'keterangan_sm': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Catatan / alasan keputusan SM'}),
         }
 
-# Custom widget untuk teks bahasa Indonesia pada upload invoice
 class CustomClearableFileInput(ClearableFileInput):
     initial_text = 'Status file'
     input_text = 'Ganti file'
@@ -131,7 +133,7 @@ class PembelianGATrackingForm(forms.ModelForm):
         widgets = {
             'tahapan_ga': forms.Select(attrs={'class': 'form-select'}),
             'nomor_invoice': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nomor invoice / resi (jika ada)'}),
-            'upload_invoice': CustomClearableFileInput(attrs={'class': 'form-control'}),  # <-- Menggunakan CustomClearableFileInput
+            'upload_invoice': CustomClearableFileInput(attrs={'class': 'form-control'}),
         }
 
 

@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import UserProfile, PerbaikanJasa, PembelianCabang, ItemPembelianCabang
+from django.contrib.auth.admin import UserAdmin
+from .models import CustomUser, UserProfile, PerbaikanJasa, PembelianCabang, ItemPembelianCabang
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
@@ -41,3 +42,37 @@ class PembelianCabangAdmin(admin.ModelAdmin):
 class ItemPembelianCabangAdmin(admin.ModelAdmin):
     list_display = ('id', 'pembelian', 'nama_barang', 'estimasi_harga')
     search_fields = ('nama_barang', 'pembelian__nama', 'pembelian__nik')
+
+
+# 1. Konfigurasi Tampilan CustomUser di Django Admin
+class CustomUserAdmin(UserAdmin):
+    model = CustomUser
+    list_display = ('username', 'name', 'email', 'is_staff', 'is_active')
+    list_filter = ('is_staff', 'is_active')
+    search_fields = ('username', 'name', 'email')
+    ordering = ('username',)
+
+    # Sesuaikan fieldset agar tidak mencari first_name / last_name bawaan
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Informasi Pribadi', {'fields': ('name', 'email')}),
+        ('Hak Akses / Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Waktu', {'fields': ('last_login', 'date_joined')}),
+    )
+
+    # Fieldset saat membuat user baru lewat tombol '+ Add User' di Admin
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'name', 'password'),
+        }),
+    )
+
+# 2. Daftarkan CustomUser ke Admin
+admin.site.register(CustomUser, CustomUserAdmin)
+
+# 3. Model lainnya yang sudah terdaftar (sesuaikan jika sudah ada)
+# admin.site.register(UserProfile)
+# admin.site.register(PerbaikanJasa)
+# admin.site.register(PembelianCabang)
+# admin.site.register(ItemPembelianCabang)

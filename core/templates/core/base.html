@@ -210,7 +210,9 @@
                 </ul>
                 <div class="d-flex align-items-center text-white mt-2 mt-lg-0">
                     <div class="me-3 text-end d-none d-lg-block">
-                        <small class="d-block text-white-50">{{ request.user.profile.role }} | {{ request.user.profile.divisi }}</small>
+                        <small class="d-block text-white-50">
+                            {{  profile.role }} | {{  profile.divisi }}
+                        </small>
                         <span class="fw-semibold">{{ request.user.username }}</span>
                     </div>
                     <a href="{% url 'core:logout' %}" class="btn btn-sm btn-outline-light"><i class="bi bi-box-arrow-right"></i> Logout</a>

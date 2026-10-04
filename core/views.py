@@ -11,7 +11,7 @@ from .models import PerbaikanJasa, PembelianCabang, ItemPembelianCabang, UserPro
 from django.core.paginator import Paginator
 from zoneinfo import ZoneInfo
 from datetime import datetime
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from .forms import (
     PerbaikanJasaUserForm,
     PerbaikanJasaGAForm,
@@ -25,6 +25,7 @@ from .forms import (
     RegisterForm
 )
 
+User = get_user_model()
 
 
 def login_view(request):
@@ -166,9 +167,9 @@ def perbaikan_delete(request, no_dokumen):
         return redirect('core:perbaikan_detail', pk=pj.pk)
 
     if request.method == 'POST':
-        pj_id = pj.id
+        pj_no_dokumen = pj.no_dokumen
         pj.delete()
-        messages.success(request, f'Permintaan perbaikan #{pj_id} berhasil dihapus oleh SAM.')
+        messages.success(request, f'Permintaan perbaikan {pj_no_dokumen} berhasil dihapus oleh SAM.')
         return redirect('core:perbaikan_list')
 
     return redirect('core:perbaikan_detail', no_dokumen=doc_key)
@@ -182,14 +183,14 @@ def perbaikan_create(request):
             pj = form.save(commit=False)
             pj.user = request.user
             pj.status = 'WAITING_GA'
-            pj.save()
-            messages.success(request, 'Permintaan perbaikan berhasil dikirim ke GA.')
+            pj.save() 
+
+            messages.success(request, f'Permintaan perbaikan {pj.no_dokumen} berhasil dikirim ke GA.')
             return redirect('core:perbaikan_list')
     else:
-        # Pre-fill NIK & Divisi dari profil jika ada
         form = PerbaikanJasaUserForm(initial={
             'nik': profile.nik,
-            'nama': request.user.get_full_name() or request.user.username,
+            'nama': getattr(request.user, 'name', None) or request.user.username,
             'divisi': profile.divisi
         })
     return render(request, 'core/perbaikan_create.html', {'form': form})
@@ -558,7 +559,7 @@ def register_view(request):
             user = User.objects.create_user(
                 username=uid,
                 password=password,
-                first_name=nama
+                name=nama
             )
 
             # Buat / perbarui profil tambahan
